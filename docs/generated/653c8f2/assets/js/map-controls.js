@@ -2631,8 +2631,10 @@
           setAttributionHidden(true);
           var speciesAccordion = document.getElementById('ms-species-accordion-content');
           var statusAccordion = document.getElementById('ms-status-accordion-content');
+          var buildingAccordion = document.getElementById('ms-building-accordion-content');
           if(speciesAccordion){ speciesAccordion.classList.add('open'); }
           if(statusAccordion){ statusAccordion.classList.add('open'); }
+          if(buildingAccordion){ buildingAccordion.classList.add('open'); }
           syncFabStackVisibility();
           syncHeaderLayeringOverModals();
           syncMobileControlVisibility(true);
