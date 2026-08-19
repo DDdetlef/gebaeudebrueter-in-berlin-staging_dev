@@ -85,6 +85,9 @@
           filterMatches: filterMatches,
           getExactFundortIdMatches: getExactFundortIdMatches,
           buildSearchIndexFromMarkers: buildSearchIndexFromMarkers,
+          renderSearchResults: renderSearchResults,
+          runSearchQuery: runSearchQuery,
+          bindSearchUi: bindSearchUi,
           parseMetaFromIconHtml: parseMetaFromIconHtml
         };
       }
@@ -149,6 +152,7 @@
         map:null,
         cluster:null,
         markers:[],
+        searchIndex:[],
         ready:false,
         userMarker:null,
         userAccuracyCircle:null,
@@ -1186,6 +1190,67 @@
             marker: marker
           };
         }));
+      }
+      function renderSearchResults(results){
+        var list = document.getElementById('ms-search-results');
+        if(!list){ return; }
+        list.innerHTML = '';
+        if(!results || !results.length){
+          var empty = document.createElement('div');
+          empty.className = 'ms-search-empty';
+          empty.textContent = 'Keine Treffer.';
+          list.appendChild(empty);
+          return;
+        }
+        results.slice(0, 12).forEach(function(item){
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'ms-search-result';
+          btn.textContent = item.title || item.fundortId || 'Fundort';
+          btn.setAttribute('title', item.title || item.fundortId || 'Fundort');
+          btn.addEventListener('click', function(){
+            var marker = item && item.marker;
+            if(marker && marker.getLatLng && MS.map){
+              var latlng = marker.getLatLng();
+              if(latlng){ MS.map.flyTo(latlng, Math.max(MS.map.getZoom(), 15), { animate: true, duration: 0.8 }); }
+            }
+            if(marker){
+              if(isMobile){ openMarkerDetailsModalFromMarker(marker); }
+              else if(typeof marker.openPopup === 'function'){ marker.openPopup(); }
+            }
+          });
+          list.appendChild(btn);
+        });
+      }
+      function runSearchQuery(query){
+        var results = filterMatches(MS.searchIndex || [], query || '');
+        renderSearchResults(results);
+      }
+      function bindSearchUi(){
+        var input = document.getElementById('ms-search-input');
+        var clearBtn = document.getElementById('ms-search-clear');
+        if(!input){ return; }
+        input.addEventListener('input', function(ev){
+          var value = (ev && ev.target ? ev.target.value : input.value) || '';
+          if(!value.trim()){
+            renderSearchResults([]);
+            return;
+          }
+          runSearchQuery(value);
+        });
+        if(clearBtn){
+          clearBtn.addEventListener('click', function(){
+            input.value = '';
+            renderSearchResults([]);
+            input.focus();
+          });
+        }
+        input.addEventListener('keydown', function(ev){
+          if(ev && ev.key === 'Escape'){ input.value = ''; renderSearchResults([]); }
+        });
+      }
+      function refreshSearchIndex(){
+        MS.searchIndex = buildSearchIndexFromMarkers(MS.markers || []);
       }
       function parseMetaFromIconHtml(html){
         var source = String(html || '');
