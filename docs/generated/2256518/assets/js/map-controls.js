@@ -83,7 +83,9 @@
           normalizeSearchText: normalizeSearchText,
           buildSearchIndex: buildSearchIndex,
           filterMatches: filterMatches,
-          getExactFundortIdMatches: getExactFundortIdMatches
+          getExactFundortIdMatches: getExactFundortIdMatches,
+          buildSearchIndexFromMarkers: buildSearchIndexFromMarkers,
+          parseMetaFromIconHtml: parseMetaFromIconHtml
         };
       }
       if (typeof window === 'undefined' || typeof document === 'undefined') {
@@ -1159,17 +1161,61 @@
         }
         tryResolve();
       }
+      function buildSearchIndexFromMarkers(markerList){
+        var markers = Array.isArray(markerList) ? markerList : [];
+        return buildSearchIndex(markers.map(function(marker){
+          var popupHtml = '';
+          var meta = marker && marker._ms ? marker._ms : {};
+          try{ if(marker && typeof marker.getPopup === 'function'){ var popup = marker.getPopup(); if(popup && typeof popup.getContent === 'function'){ popupHtml = popup.getContent() || ''; } } }catch(e){}
+          var htmlText = '';
+          if(typeof popupHtml === 'string'){ htmlText = popupHtml.replace(/<[^>]+>/g, ' '); }
+          var address = String(meta.address || '').trim();
+          var buildingName = String(meta.buildingName || '').trim();
+          var title = Array.isArray(meta.species) && meta.species.length ? meta.species.join(', ') : (buildingName || address || 'Fundort');
+          var fundortId = String(meta.fundortId || '') || String((htmlText.match(/ID\s*=?\s*(\d+)/i) || [])[1] || '').trim();
+          return {
+            fundortId: fundortId,
+            title: title || address || 'Fundort',
+            publicText: [address, buildingName, htmlText].join(' '),
+            address: address,
+            description: htmlText,
+            buildingType: meta.buildingType || '',
+            buildingName: buildingName,
+            species: meta.species || [],
+            status: meta.statuses || [],
+            marker: marker
+          };
+        }));
+      }
       function parseMetaFromIconHtml(html){
-        var temp = document.createElement('div'); temp.innerHTML = (html||'').trim();
-        var el = temp.querySelector('.ms-marker');
-        var species = []; var statuses = []; var statusColor = '#9e9e9e'; var buildingType = '';
-        if(el){
-          try{ species = JSON.parse(el.getAttribute('data-species')||'[]'); }catch(e){}
-          try{ statuses = JSON.parse(el.getAttribute('data-statuses')||'[]'); }catch(e){}
-          statusColor = el.getAttribute('data-statuscolor') || '#9e9e9e';
-          buildingType = (el.getAttribute('data-building-type') || '').trim().toLowerCase();
+        var source = String(html || '');
+        var species = []; var statuses = []; var statusColor = '#9e9e9e'; var buildingType = ''; var buildingName = ''; var address = '';
+        function readAttribute(name){
+          var pattern = new RegExp(name + "\\s*=\\s*(?:'([^']*)'|\"([^\"]*)\"|([^\\s>]+))", 'i');
+          var match = source.match(pattern);
+          if(!match){ return ''; }
+          return decodeURIComponent((match[1] || match[2] || match[3] || '').replace(/\\u003d/g, '='));
         }
-        return { species: species, statuses: statuses, statusColor: statusColor, buildingType: buildingType };
+        if(typeof document !== 'undefined'){
+          var temp = document.createElement('div'); temp.innerHTML = source.trim();
+          var el = temp.querySelector('.ms-marker');
+          if(el){
+            try{ species = JSON.parse(el.getAttribute('data-species')||'[]'); }catch(e){}
+            try{ statuses = JSON.parse(el.getAttribute('data-statuses')||'[]'); }catch(e){}
+            statusColor = el.getAttribute('data-statuscolor') || '#9e9e9e';
+            buildingType = (el.getAttribute('data-building-type') || '').trim().toLowerCase();
+            buildingName = (el.getAttribute('data-building-name') || '').trim();
+            address = (el.getAttribute('data-address') || '').trim();
+          }
+        } else {
+          species = (function(){ try{ return JSON.parse(readAttribute('data-species') || '[]'); }catch(e){ return []; } })();
+          statuses = (function(){ try{ return JSON.parse(readAttribute('data-statuses') || '[]'); }catch(e){ return []; } })();
+          statusColor = readAttribute('data-statuscolor') || '#9e9e9e';
+          buildingType = (readAttribute('data-building-type') || '').trim().toLowerCase();
+          buildingName = (readAttribute('data-building-name') || '').trim();
+          address = (readAttribute('data-address') || '').trim();
+        }
+        return { species: species, statuses: statuses, statusColor: statusColor, buildingType: buildingType, buildingName: buildingName, address: address };
       }
       function initMarkers(){
         MS.markers = MS.cluster.getLayers();
@@ -3400,12 +3446,4 @@
       buildFilters();
       wireFilters();
       setTimeout(function(){ var selectedSpecies = Object.keys(SPECIES_COLORS_JS); var selectedStatus = Object.keys(STATUS_INFO_JS); var selectedBuildingTypes = Object.keys(BUILDING_TYPE_INFO_JS); rebuildCluster(selectedSpecies, selectedStatus, selectedBuildingTypes, true); }, 250);
-      if (typeof module !== 'undefined' && module.exports) {
-        module.exports = {
-          normalizeSearchText: normalizeSearchText,
-          buildSearchIndex: buildSearchIndex,
-          filterMatches: filterMatches,
-          getExactFundortIdMatches: getExactFundortIdMatches
-        };
-      }
     })();
