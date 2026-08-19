@@ -1230,6 +1230,8 @@
         var input = document.getElementById('ms-search-input');
         var clearBtn = document.getElementById('ms-search-clear');
         if(!input){ return; }
+        if(input.dataset && input.dataset.msSearchBound === '1'){ return; }
+        if(input.dataset){ input.dataset.msSearchBound = '1'; }
         input.addEventListener('input', function(ev){
           var value = (ev && ev.target ? ev.target.value : input.value) || '';
           if(!value.trim()){
@@ -3510,5 +3512,6 @@
       });
       buildFilters();
       wireFilters();
+      bindSearchUi();
       setTimeout(function(){ var selectedSpecies = Object.keys(SPECIES_COLORS_JS); var selectedStatus = Object.keys(STATUS_INFO_JS); var selectedBuildingTypes = Object.keys(BUILDING_TYPE_INFO_JS); rebuildCluster(selectedSpecies, selectedStatus, selectedBuildingTypes, true); }, 250);
     })();
