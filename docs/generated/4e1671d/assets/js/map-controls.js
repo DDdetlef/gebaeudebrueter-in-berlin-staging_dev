@@ -57,6 +57,7 @@
         map:null,
         cluster:null,
         markers:[],
+        searchIndex:[],
         ready:false,
         userMarker:null,
         userAccuracyCircle:null,
